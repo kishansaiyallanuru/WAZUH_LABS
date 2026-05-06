@@ -43,7 +43,11 @@ Before starting the attack, I confirmed the IP address of each machine using `ip
 ip a
 ```
 
-![Victim IP](Ip_Agent.png)
+![Victim IP](Images/victim_ip_ubuntu.png)
+
+> Here I ran `ip a` on my Ubuntu victim machine to confirm its IP address before the lab. You can see the interface `enp0s3` is assigned `10.172.95.208/24` on the `10.172.95.0/24` subnet. I also noticed the MAC address `08:00:27:93:ad:61` which later showed up in the Wazuh alert logs — that was a good sanity check that the right machine was being targeted.
+
+---
 
 ### Attacker Machine (Kali Linux) — IP: 10.172.95.131
 
@@ -51,7 +55,11 @@ ip a
 ip a
 ```
 
-![Attacker IP](Ip_Attacker.png)
+![Attacker IP](Images/attacker_ip_kali.png)
+
+> This is the `ip a` output from my Kali attacker machine. The `eth0` interface got the address `10.172.95.131/24`. Since both machines are on the same `/24` subnet, they can reach each other directly — no routing needed. I made a note of this IP because it's the one that would show up in the UFW block logs on the victim side, and I wanted to confirm alerts were actually coming from my machine.
+
+---
 
 ### Wazuh Server (Kali with Docker) — IP: 10.172.95.37
 
@@ -59,7 +67,9 @@ ip a
 ip a
 ```
 
-![Wazuh Server IP](Ip_Server.png)
+![Wazuh Server IP](Images/wazuh_server_ip_docker.png)
+
+> This is the Wazuh server machine running Docker. The relevant interface here is `wlan0`, which has the IP `10.172.95.37/24`. I also noticed there's a `docker0` bridge at `172.17.0.1` and a custom bridge `br-12bfc96a769a` at `172.18.0.1` — those are the internal Docker networks the Wazuh containers communicate over. The important thing was that `wlan0` was reachable from the victim machine so the agent could forward logs to the manager.
 
 ---
 
@@ -73,7 +83,9 @@ From the Kali attacker machine, I ran a SYN scan against the victim:
 sudo nmap -sS -T4 10.172.95.208
 ```
 
-![Nmap Scan Result](Nmap_San.png)
+![Nmap Scan Result](Images/nmap_syn_scan_result.png)
+
+> This is the actual Nmap scan I ran. I used `-sS` for a SYN (stealth) scan and `-T4` for an aggressive timing template to make it fast. The scan finished in about 6.41 seconds and found only one open port — **port 22 (SSH)**. The remaining 999 ports came back as filtered, which means UFW was silently dropping those SYN packets. That's exactly what I needed — every one of those dropped packets would generate a `UFW BLOCK` log entry on the victim, giving Wazuh something to work with.
 
 ### What a SYN Scan does
 
@@ -105,7 +117,9 @@ Because UFW (the firewall on the victim) blocked the scan packets, it wrote entr
 sudo tail -f /var/log/ufw.log
 ```
 
-![UFW Logs](UFW_logIn_Agent.png)
+![UFW Logs](Images/ufw_firewall_logs_victim.png)
+
+> I ran `sudo tail -f /var/log/ufw.log` on the victim machine to watch the logs come in live while the scan was running. What I saw was exactly what I expected — a flood of `UFW AUDIT` and `UFW BLOCK` lines, all originating from `10.172.95.131` (my Kali attacker). Each blocked SYN packet showed up as a separate log entry with the destination port it was targeting. I could literally watch the scan happening in real time just from the firewall logs, which was pretty satisfying. This confirmed the logs were being written and that the Wazuh agent would have something to pick up.
 
 ### Sample Log Entries
 
@@ -178,7 +192,9 @@ nano local_rules.xml
 docker cp local_rules.xml single-node-wazuh.manager-1:/var/ossec/etc/rules/local_rules.xml
 ```
 
-![Path for Rule Change](Path_For_RUle__Chnage.png)
+![Docker CP Rules File](Images/docker_cp_rules_file.png)
+
+> This screenshot shows me working around Issue 3. Since there was no text editor inside the Wazuh manager Docker container, I had to copy `local_rules.xml` out to the host with `docker cp`, edit it using `nano` on the host, and then copy it back in. You can see the file sizes changed between the two `docker cp` operations — from 2.56kB to 3.07kB — which confirmed that my new rules were actually saved into the file before it was pushed back. It's a simple workaround but one I hadn't thought about upfront, and it cost me a bit of time figuring it out.
 
 Once all three issues were resolved, logs were successfully forwarded, detected, and visualized in the Wazuh dashboard.
 
@@ -188,7 +204,9 @@ Once all three issues were resolved, logs were successfully forwarded, detected,
 
 I wrote three rules in `local_rules.xml` to detect the port scan:
 
-![Rules in Editor](Rules_Change.png)
+![Rules in Editor](Images/local_rules_xml_editor.png)
+
+> This is the `local_rules.xml` file open in `nano` after I wrote the custom rules. You can see the full XML structure — there's the existing example rule (ID `100001`) for SSH auth failures that ships with Wazuh by default, and then my three new rules underneath in a separate `<group name="scan,recon,nmap,">` block. I grouped them under descriptive tags like `recon` and `port_scan` so they would show up properly categorized in the Wazuh dashboard. Writing this was honestly the most interesting part of the lab — figuring out the right combination of `<match>`, `<if_matched_sid>`, `frequency`, and `timeframe` attributes to make the detection both accurate and not too noisy.
 
 ```xml
 <!-- Local rules -->
@@ -296,7 +314,9 @@ docker restart single-node-wazuh.manager-1
 
 After running the scan again, the alerts appeared in the Wazuh Dashboard.
 
-![Wazuh Dashboard](Wazuh_Dashboard.png)
+![Wazuh Dashboard](Images/wazuh_alert_dashboard.png)
+
+> This is the moment everything came together. I filtered the Wazuh dashboard by the attacker IP `10.172.95.131` and got back **31 hits** — all clustered tightly at around 14:09 on May 6, 2026, which is exactly when I ran the scan. Each alert entry shows `rule.id: 100100`, `rule.level: 10`, and the description "UFW Firewall Block - Possible Port Scan". You can also see the `full_log` field in each row contains the raw `[UFW BLOCK]` syslog entry with the source IP highlighted in yellow. The spike in the histogram at the far right of the timeline is a visual confirmation of the burst pattern — all 31 events fired in a matter of seconds. Seeing this after hours of debugging the agent registration and rule syntax was genuinely satisfying.
 
 ### Alert Details
 
