@@ -1,21 +1,25 @@
 
 # SSH Brute Force Attack Detection using Wazuh SIEM
 
+## **Date:** 2nd & 4th May, 2026
+
 A hands-on cybersecurity task where I simulated SSH brute force attacks and detected them using Wazuh SIEM. I carried this out in a fully controlled virtual environment using multiple attack tools across three machines. Everything here is strictly for educational and research purposes.
 
 ---
-
 ## Task Environment
 
 For this task, I set up three virtual machines inside VirtualBox, each with a specific role — a SIEM manager, a victim SSH server, and an attacker machine. All machines communicate over a shared internal network.
 
 The Ubuntu machine runs OpenSSH Server and a Wazuh Agent, which forwards all authentication events to the Wazuh Manager. The Kali attacker machine launches brute force attacks using different tools to generate varied authentication log patterns.
 
-| Machine | Role | OS | IP Address |
-|---|---|---|---|
-| Wazuh Server | SIEM Manager | Kali Linux | 10.181.125.37 |
-| Ubuntu Victim | Victim + Agent | Ubuntu | 10.181.125.208 |
-| Kali Attacker | Attacker Machine | Kali Linux | 10.181.125.131 |
+
+| Role         | OS              | IP Address     |
+|--------------|-----------------|----------------|
+| Attacker     | Kali Linux      | 10.181.125.131  |
+| Victim       | Ubuntu          | 10.181.125.208  |
+| Wazuh Server | Kali (Docker)   | 10.181.125.37   |
+
+---
 
 ---
 
