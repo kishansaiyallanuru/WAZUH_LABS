@@ -1,4 +1,5 @@
 # Nmap SYN Scan Detection using Wazuh SIEM
+## **Date:** 30th April & 1st May, 2026
 
 A hands-on cybersecurity lab where I set up a small network, performed a port scan from Kali Linux, and detected it using Wazuh SIEM with a custom detection rule.
 
