@@ -114,7 +114,7 @@ With SSH confirmed open, I tested a manual login from the attacker machine to ve
 ssh kishansai@10.181.125.208
 ```
 
-![Manual SSH Login](Images/manual_ssh_login.png)
+![Manual SSH Login](Images/manual_ssh_attempt.png)
 
 The Kali attacker machine (`10.181.125.131`) successfully authenticated to the victim (`10.181.125.208`) using valid credentials. The Ubuntu 26.04 LTS welcome banner appeared and the session was closed immediately with `exit`. This confirmed that authentication, session setup, and disconnection all worked correctly.
 
