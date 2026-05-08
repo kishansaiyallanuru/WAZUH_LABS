@@ -2,63 +2,60 @@
 
 ## **Date:** 6th & 7th May, 2026
 
-A hands-on cybersecurity task where I simulated FTP brute force attacks and detected them using Wazuh SIEM. I set this up in a controlled virtual lab across three machines. Everything here is strictly for educational purposes.
+This is a hands-on lab where I set up a real FTP service, ran brute force attacks against it using Hydra and Medusa, and monitored everything through Wazuh SIEM. I also wrote custom Wazuh rules to detect file uploads and downloads. Done in a controlled VM environment for learning purposes.
 
 ---
 
 ## Task Environment
 
-I used three VirtualBox VMs for this — a Kali attacker, an Ubuntu victim running vsftpd, and a Wazuh server running in Docker on Kali. The Ubuntu machine has a Wazuh agent installed that forwards FTP authentication events to the Wazuh manager in near real time.
+Three VMs in VirtualBox — one as attacker, one as victim running vsftpd, and one running the Wazuh server in Docker.
 
-| Role         | OS              | IP Address      |
-|--------------|-----------------|-----------------|
-| Attacker     | Kali Linux      | 10.181.125.131  |
-| Victim       | Ubuntu          | 10.181.125.208  |
-| Wazuh Server | Kali (Docker)   | 10.181.125.37   |
+| Role         | OS            | IP Address     |
+|--------------|---------------|----------------|
+| Attacker     | Kali Linux    | 10.181.125.131 |
+| Victim       | Ubuntu        | 10.181.125.208 |
+| Wazuh Server | Kali (Docker) | 10.181.125.37  |
 
 ---
 
 ## Objective
 
-- Set up a real FTP service on Ubuntu using vsftpd
-- Simulate FTP brute force attacks using Hydra and Medusa
-- Monitor and detect the attacks through Wazuh
-- Analyze logs, rule IDs, and event patterns in the Wazuh dashboard
-- Map the attack to MITRE ATT&CK techniques
+- Set up vsftpd on Ubuntu and configure it properly
+- Run FTP brute force attacks using Hydra and Medusa
+- Detect everything through Wazuh
+- Write custom rules to detect file transfers (uploads and downloads)
+- Map it all to MITRE ATT&CK
 
 ---
 
 ## Tools Used
 
-**Wazuh SIEM** — The main detection tool. I deployed a Wazuh agent on the Ubuntu victim and configured it to read vsftpd logs. Every FTP login attempt showed up in the Wazuh dashboard in real time with decoded fields and rule alerts.
+**Wazuh SIEM** — Used for monitoring and detection. I deployed an agent on the Ubuntu victim and pointed it at the vsftpd log file. All FTP events showed up in the Wazuh dashboard with rule alerts and decoded fields.
 
-**Hydra** — A fast brute force tool that supports FTP. I used it in two ways — once targeting a single username, and once with a full username and password list.
+**Hydra** — Fast FTP brute force tool. I used it twice — once with a single username and once with a full user list.
 
-**Medusa** — Another brute force tool. More controlled than Hydra. I ran it with `-t 2` to keep it stable inside the VM and used `-v 6` for full verbose output.
+**Medusa** — Another brute force tool, steadier than Hydra. I kept threads low at `-t 2` and used `-v 6` for full verbose output.
 
-**Nmap** — I used this before the attacks to confirm FTP was running on port 21 on the victim.
+**Nmap** — Used before the attacks just to confirm port 21 was open on the victim.
 
-**vsftpd** — The FTP server I installed on Ubuntu. It writes authentication events to `/var/log/vsftpd.log`, which Wazuh reads after I configured the agent.
+**vsftpd** — The FTP service I set up on Ubuntu. Logs go to `/var/log/vsftpd.log`, which is what Wazuh monitors.
 
 ---
 
-## Hydra vs Medusa — Comparison
+## Hydra vs Medusa
 
 | Feature | Hydra | Medusa |
 |---|---|---|
 | Speed | Faster | Slower but steadier |
-| VM Stability | Can cause timeouts at high threads | More stable with `-t 2` |
-| Protocol Support | 50+ protocols | ~20+ protocols |
-| Output | Compact, shows result | Verbose, shows every attempt |
-| Best Use in Lab | Use `-t 2` or lower | Excellent for clean log stream |
+| VM Stability | Can timeout at high threads | Stable with `-t 2` |
+| Protocol Support | 50+ | ~20+ |
+| Output | Shows result only | Shows every attempt with `-v 6` |
 
 ---
 
 ## Lab Setup
 
-Before any attacks, I set up the FTP service on the Ubuntu victim and created a user account with a weak password.
-
-### Installing and Starting vsftpd
+### Installing vsftpd
 
 ```bash
 sudo apt update
@@ -71,9 +68,9 @@ sudo ss -tulnp | grep :21
 
 ![FTP Service Status](Images/ftp_service_status.png)
 
-I installed vsftpd on the Ubuntu victim, started and enabled the service, then checked its status. The output shows `vsftpd.service` is active and running. The last line from `ss -tulnp | grep :21` confirms `tcp LISTEN 0 32 *:21`, meaning vsftpd is listening on port 21 on all interfaces. With this confirmed, the FTP service was ready.
+Installed vsftpd, started and enabled it, then checked that it's running. The `ss` command at the end confirms port 21 is listening — `tcp LISTEN 0 32 *:21`. Service is up and ready.
 
-### Configuring vsftpd
+### vsftpd Config
 
 ```bash
 sudo nano /etc/vsftpd.conf
@@ -87,7 +84,7 @@ local_enable=YES
 write_enable=YES
 ```
 
-I disabled anonymous access and enabled local user logins so the brute force attacks would hit real authentication.
+Turned off anonymous access, enabled local users. This way the brute force attempts actually go through real authentication.
 
 ### Creating the Victim User
 
@@ -95,13 +92,11 @@ I disabled anonymous access and enabled local user logins so the brute force att
 sudo adduser victim
 ```
 
-I created a user called `victim` with the password `test`. The weak password was intentional — I needed the brute force tools to crack it within a small wordlist so I could observe the full detection chain in Wazuh.
+Created a user `victim` with password `test`. Weak password on purpose — needed it to be crackable with a small wordlist so I could see the full detection flow in Wazuh.
 
 ---
 
 ## Network Verification
-
-Before any attacks, I confirmed both machine IPs and verified FTP was reachable from the attacker.
 
 ### Victim IP
 
@@ -111,7 +106,7 @@ ip a
 
 ![Victim IP](Images/victim_ip.png)
 
-The `ip a` output on the Ubuntu victim shows `enp0s3` with IP `10.181.125.208`. This is the target address I used in every attack command throughout this task.
+Ubuntu victim is on `10.181.125.208` — the target IP for all attacks.
 
 ### Attacker IP
 
@@ -121,9 +116,9 @@ ip a
 
 ![Attacker IP](Images/attacker_ip.png)
 
-The Kali attacker machine shows `eth0` with IP `10.181.125.131`. This is the source IP that appears in every Wazuh log entry, identifying where the attacks came from.
+Kali attacker is on `10.181.125.131` — this is the source IP that shows up in every Wazuh log.
 
-### Nmap Scan to Confirm FTP is Open
+### Nmap Scan
 
 ```bash
 nmap -sV 10.181.125.208
@@ -131,13 +126,13 @@ nmap -sV 10.181.125.208
 
 ![Nmap FTP Scan](Images/nmap_ftp_scan.png)
 
-I ran a service version scan from the Kali attacker against the victim. Port 21 shows as open, running vsftpd 3.0.5. Port 22 is also open, which is expected. The scan completed in 1.10 seconds with no firewall interference. This confirmed FTP was reachable before I started any brute force attacks.
+Port 21 is open, vsftpd 3.0.5 running. Port 22 is also there since it's Ubuntu. No firewall issues. FTP is reachable from the attacker, good to go.
 
 ---
 
-## Configuring Wazuh Agent to Monitor FTP Logs
+## Configuring Wazuh Agent to Monitor vsftpd Logs
 
-By default, Wazuh doesn't monitor `/var/log/vsftpd.log`. I had to add a `localfile` block to the agent config on the Ubuntu victim.
+Wazuh doesn't monitor `/var/log/vsftpd.log` by default, so I had to add it manually.
 
 ```bash
 sudo nano /var/ossec/etc/ossec.conf
@@ -152,9 +147,7 @@ sudo nano /var/ossec/etc/ossec.conf
 
 ![Wazuh Agent FTP Log Config](Images/Add_ftp_logs_wazuhagent_req.png)
 
-The screenshot shows the `ossec.conf` file with the `<localfile>` block added. Without this, none of the FTP events would reach Wazuh at all. This was the key configuration step that enabled the whole detection pipeline.
-
-### Restarting the Wazuh Agent
+The screenshot shows the `ossec.conf` with the `localfile` block added. Without this, nothing would show up in Wazuh no matter how many attacks I ran.
 
 ```bash
 sudo systemctl restart wazuh-agent
@@ -163,13 +156,13 @@ sudo systemctl status wazuh-agent
 
 ![Wazuh Agent Running](Images/wazuh_agent_running.png)
 
-After saving the config, I restarted the agent. The status output confirms `wazuh-agent.service` is active and running. The process tree shows all expected components running — `wazuh-execd`, `wazuh-agentd`, `wazuh-logcollector`, `wazuh-syscheckd`, and `wazuh-modulesd`. Journal entries at the bottom confirm everything started cleanly. The agent was now forwarding vsftpd events to the Wazuh manager.
+Restarted the agent and checked status. All components are running — `wazuh-agentd`, `wazuh-logcollector`, `wazuh-execd`, etc. The journal entries confirm it started clean. Agent is now forwarding vsftpd logs to the Wazuh manager.
 
 ---
 
-## Attack Method 1 — Manual FTP Authentication Testing
+## Attack Method 1 — Manual FTP Login
 
-I started with manual FTP logins to verify Wazuh was picking up FTP events before moving to automated tools. I made both successful and failed attempts.
+I did a few manual logins first — some correct, some wrong — just to make sure Wazuh was actually capturing FTP events before I started the automated attacks.
 
 ```bash
 ftp 10.181.125.208
@@ -177,25 +170,23 @@ ftp 10.181.125.208
 
 ![Manual FTP Login](Images/manual_ftp_login.png)
 
-I connected to the victim's FTP service from the Kali machine. The vsftpd banner `220 (vsFTPd 3.0.5)` appeared, I entered the `victim` credentials, and got `230 Login successful`. This confirmed end-to-end FTP connectivity and that the victim account was working before any brute force attacks.
+Connected from Kali, got the `220 (vsFTPd 3.0.5)` banner, logged in as `victim`, got `230 Login successful`. Basic check passed — FTP works end to end.
 
-### Wazuh Document — FTP Auth Success
+### Wazuh — Login Event Document
 
 ![Manual FTP Login Document](Images/manual_ftp_login_doc.png)
 
-I opened the Wazuh document for the successful login. Key fields: `rule.id: 11402` (vsftpd: FTP Authentication success), `rule.level: 3`, `data.dstuser: victim`, `data.srcip: ::ffff:10.181.125.131`, `data.status: OK LOGIN`, `decoder.name: vsftpd`. The `full_log` shows `[victim] OK LOGIN: Client "::ffff:10.181.125.131"`. MITRE T1078 was auto-tagged. This confirmed Wazuh was decoding vsftpd events correctly.
+Pulled up the event in Wazuh. It shows `rule.id: 11402`, `data.status: OK LOGIN`, `data.dstuser: victim`, `data.srcip: ::ffff:10.181.125.131`, `decoder.name: vsftpd`. MITRE T1078 auto-tagged. Wazuh decoded it correctly and the rule fired as expected.
 
-### Wazuh Filtered View — Manual Login Events
+### Wazuh — Filtered View
 
 ![Manual FTP Login Filter](Images/manual_ftp_login_filter.png)
 
-Filtering by the attacker IP in Wazuh showed hits from the session. The event list shows `rule.id: 11402` (auth success), `rule.id: 11401` (FTP session opened), and `rule.id: 11403` (login failed) from the intentional bad attempts. The histogram shows the activity at the start of the session. Wazuh was confirmed working, so I moved to the automated attacks.
+Filtered by attacker IP and saw events from the manual testing — `11402` for the successful login, `11401` for FTP session opened, and `11403` for the intentional failed attempts. Everything is being captured. Moved on to the actual attacks.
 
 ---
 
-## Attack Method 2 — Hydra Single Username FTP Brute Force
-
-I used Hydra with a single username and a custom password list I created manually.
+## Attack Method 2 — Hydra Single Username
 
 ```bash
 hydra -l victim -P pass.txt ftp://10.181.125.208
@@ -203,25 +194,25 @@ hydra -l victim -P pass.txt ftp://10.181.125.208
 
 ![Hydra FTP Single User](Images/hydra_ftp_single.png)
 
-Hydra v9.6 started at `15:33:06` and worked through 7 passwords for the `victim` username. The result shows `[21][ftp] host: 10.181.125.208 login: victim password: test`. Hydra found it quickly since `test` was in my wordlist. I verified by opening a manual FTP session right after — `230 Login successful` and the `ls` command showed the victim's home directory, confirming full access.
+Hydra ran through 7 passwords for `victim`. Found it almost immediately — `login: victim password: test`. I then manually connected to verify: `230 Login successful` and `ls` showed the victim's home directory. Done in about 15 seconds.
 
-### Wazuh Document — Rule 40112
+### Wazuh — Rule 40112
 
 ![Hydra FTP Single User Document](Images/hydra_ftp_single_doc.png)
 
-The most important alert from this attack: `rule.id: 40112` at `rule.level: 12` — "Multiple authentication failures followed by a success." This fires when Wazuh sees multiple failed logins from the same source followed immediately by a success — the exact pattern of a successful brute force. The `full_log` shows `[victim] OK LOGIN: Client "::ffff:10.181.125.131"`. MITRE T1078 and T1110 are both tagged. `rule.mail: true` means this would send an email notification in production.
+The key alert: `rule.id: 40112`, `rule.level: 12` — "Multiple authentication failures followed by a success." This is the composite rule that fires when Wazuh sees the failed attempts followed by a successful login from the same IP. `data.status: OK LOGIN`, `rule.mail: true`. MITRE T1078 and T1110 both tagged.
 
-### Wazuh Filtered View
+### Wazuh — Events After Attack
 
 ![Hydra FTP Single User Filter](Images/hydra_ftp_single_filter.png)
 
-After the Hydra single-user attack, the Wazuh dashboard shows 1,252 total hits filtered by attacker IP. The top event is the severity-12 `rule.id: 40112` alert, followed by `rule.id: 11401` and `rule.id: 11403` events. The histogram shows a clear spike at the time of the attack. The attacker IP and `data.dstuser: victim` are visible in every row.
+After the attack, filtering by attacker IP shows 1,252 hits total. Top of the list is the severity-12 alert, then `11401` and `11403` events below it. Clear spike in the histogram right when Hydra ran.
 
 ---
 
-## Attack Method 3 — Hydra Multi-User FTP Brute Force
+## Attack Method 3 — Hydra Multi-User
 
-I escalated by targeting multiple usernames at once using both `users.txt` and `pass.txt`, simulating an attacker who doesn't know which accounts exist on the system.
+This time I used a full list of usernames and passwords to simulate not knowing which accounts exist.
 
 ```bash
 hydra -L users.txt -P pass.txt -t 2 ftp://10.181.125.208
@@ -229,25 +220,23 @@ hydra -L users.txt -P pass.txt -t 2 ftp://10.181.125.208
 
 ![Hydra FTP Multi-User](Images/hydra_ftp_double.png)
 
-Hydra worked through `56 login tries (l:8/p:7)` — 8 usernames × 7 passwords. The result shows `login: victim password: test` found. I used `-t 2` to keep it stable in the VM. After Hydra finished, I verified by connecting manually — `230 Login successful` confirmed it. The multi-user run generated significantly more Wazuh events than the single-user run.
+56 total attempts — 8 usernames × 7 passwords. Found `victim:test` again. Used `-t 2` to avoid connection timeouts in the VM. Verified afterward with a manual FTP session — `230 Login successful`.
 
-### Wazuh Threat Hunting — Multi-User All Logs
+### Wazuh — Threat Hunting View
 
 ![Hydra Multi-User Threat Hunt](Images/Hydra_multi_all_logs_threathunt.png)
 
-The Threat Hunting view shows the full event stream from this attack. At the top, `rule.id: 40112` at level 12 fires first. Below that, `rule.id: 11403` (login failed) and `rule.id: 5503` (PAM: User login failed) repeat across every failed attempt. `rule.id: 11451` (vsftpd: FTP brute force — multiple failed logins) also appears at level 10 — this is Wazuh's dedicated FTP brute force rule that fires even before a successful login happens. `rule.id: 5551` (PAM: Multiple failed logins in a small period) triggered too. Multiple rules fired independently from a single attack run.
+The Threat Hunting view shows the full event chain. At the top is `rule.id: 40112` (level 12), then a stream of `11403` (login failed) and `5503` (PAM: User login failed) events from every failed attempt. `rule.id: 11451` (FTP brute force) and `5551` (PAM: multiple failed logins) also fired — multiple independent rules all picking up the same attack.
 
-### Wazuh Document — Multi-User Rule 40112
+### Wazuh — Rule 40112 Document
 
 ![Hydra Multi-User Document](Images/Hydra_multi_all_logs_threathunt_doc.png)
 
-The document for the severity-12 alert shows `rule.id: 40112`, `rule.firedtimes: 3`, `data.dstuser: victim`, `data.srcip: ::ffff:10.181.125.131`, `data.status: OK LOGIN`. The `full_log` reads `[victim] OK LOGIN: Client "::ffff:10.181.125.131"` at `15:42:19`. MITRE T1078 and T1110 tagged. PCI-DSS, HIPAA, GDPR, and NIST 800-53 compliance entries are all auto-populated. The `rule.firedtimes: 3` means this composite alert had now fired three times across the session.
+Same `rule.id: 40112` at level 12. `rule.firedtimes: 3` — third time this alert fired across the session. `full_log` shows `[victim] OK LOGIN: Client "::ffff:10.181.125.131"` at `15:42:19`. GDPR, HIPAA, PCI-DSS, NIST compliance all auto-tagged.
 
 ---
 
-## Attack Method 4 — Medusa FTP Brute Force
-
-The last attack used Medusa with full verbose output.
+## Attack Method 4 — Medusa
 
 ```bash
 medusa -h 10.181.125.208 -U users.txt -P pass.txt -M ftp -t 2 -v 6
@@ -255,46 +244,150 @@ medusa -h 10.181.125.208 -U users.txt -P pass.txt -M ftp -t 2 -v 6
 
 ![Medusa FTP Attack](Images/medusa_ftp_attack.png)
 
-Medusa v2.3 worked through all 56 combinations. Each line shows `ACCOUNT CHECK: [ftp] Host: 10.181.125.208 User: <username> Password: <password>` with a timestamp. When it reached `victim:test`, the output changed to `ACCOUNT FOUND: [ftp] Host: 10.181.125.208 User: victim Password: test [SUCCESS]`. I confirmed by opening a manual FTP session after — `230 Login successful`. The verbose output made it easy to watch every attempt in real time.
+Medusa worked through all 56 combinations one by one, printing each attempt with a timestamp. When it hit `victim:test` it printed `ACCOUNT FOUND: [ftp] Host: 10.181.125.208 User: victim Password: test [SUCCESS]`. Verified manually after — `230 Login successful` again.
 
-### Wazuh Document — Medusa Rule 40112
+### Wazuh — Medusa Document
 
 ![Medusa FTP Document](Images/medusa_ftp_attack_doc.png)
 
-The document for the Medusa attack shows the same `rule.id: 40112` at `rule.level: 12` as every previous successful brute force. `rule.firedtimes: 5`, `data.dstuser: victim`, `data.srcip: ::ffff:10.181.125.131`, `data.status: OK LOGIN`. The `decoder.name: vsftpd` is identical across all four methods. This confirms that switching attack tools changes nothing — Wazuh detects the behavior in the vsftpd logs regardless of what generated it.
+Same story — `rule.id: 40112`, level 12, `rule.firedtimes: 5`, `decoder.name: vsftpd`. Same rules fired as with Hydra. Switching tools makes zero difference to Wazuh — it detects the behavior in the logs, not what tool caused it.
 
-### Wazuh Filtered View — Medusa vsftpd Events
+### Wazuh — vsftpd Filter
 
 ![Medusa FTP Filter](Images/medusa_ftp_attack_filter.png)
 
-Filtering by `vsftpd` after the Medusa attack shows 316 hits, all in a sharp spike on the right side of the histogram — exactly when Medusa ran. The top event is the severity-12 `rule.id: 40112` alert, followed by `rule.id: 11401` and a stream of `rule.id: 11403` failed login entries. One event shows a batched `previous_output` where Wazuh aggregated multiple consecutive FAIL LOGIN lines together. Every entry shows `data.srcip: ::ffff:10.181.125.131` and `decoder.parent: vsftpd`.
+Filtering by `vsftpd` after Medusa shows 316 hits, all in a sharp spike on the histogram. Top is the level-12 alert, followed by `11401` and `11403` events. One event shows Wazuh batching multiple consecutive FAIL LOGIN lines into a single `previous_output` entry.
 
 ---
 
-## Log Analysis Using Wazuh
+## Custom Wazuh Rules — FTP File Transfer Detection
 
-The Ubuntu victim runs Wazuh Agent (agent ID: 001, named `kishansai-VirtualBox`) configured to read `/var/log/vsftpd.log`. Every vsftpd event was forwarded to the Wazuh Manager, decoded using the `vsftpd` decoder, and stored in index `wazuh-alerts-4.x-2026.05.07`.
+After the brute force attacks, I wanted to go one step further and see if I could get Wazuh to detect actual file transfers — uploads and downloads — not just logins. By default it doesn't have rules for `OK UPLOAD` or `OK DOWNLOAD` in vsftpd logs, so I wrote them myself.
 
-### Key Wazuh Rule IDs Observed
+Inside the Wazuh manager Docker container, I appended rules to `local_rules.xml`:
 
-| Rule ID | Description | Severity |
+```bash
+cat >> /var/ossec/etc/rules/local_rules.xml << 'EOF'
+
+<group name="ftp_custom">
+
+  <rule id="100500" level="7">
+    <match>OK UPLOAD</match>
+    <description>FTP File Upload Detected</description>
+    <group>ftp,file_upload,file_transfer,</group>
+  </rule>
+
+  <rule id="100501" level="7">
+    <match>OK DOWNLOAD</match>
+    <description>FTP File Download Detected</description>
+    <group>ftp,file_download,file_transfer,</group>
+  </rule>
+
+  <rule id="100502" level="6">
+    <match>STOR</match>
+    <description>FTP Upload Command Detected</description>
+    <group>ftp,file_upload,file_transfer,</group>
+  </rule>
+
+  <rule id="100503" level="6">
+    <match>RETR</match>
+    <description>FTP Download Command Detected</description>
+    <group>ftp,file_download,file_transfer,</group>
+  </rule>
+
+  <rule id="100600" level="7">
+    <if_sid>11404</if_sid>
+    <description>FTP File Upload Detected With Source IP</description>
+    <group>ftp,file_upload,file_transfer,</group>
+  </rule>
+
+</group>
+
+EOF
+```
+
+What each rule does:
+
+- `100500` — matches `OK UPLOAD` in the vsftpd log
+- `100501` — matches `OK DOWNLOAD`
+- `100502` — matches the `STOR` FTP command (upload command)
+- `100503` — matches the `RETR` FTP command (download command)
+- `100600` — builds on the built-in rule `11404` and adds source IP visibility for uploads
+
+After adding them, I restarted the manager:
+
+```bash
+/var/ossec/bin/wazuh-control restart
+```
+
+### FTP File Transfer from Attacker
+
+```bash
+ftp 10.181.125.208
+ftp> put ftp_trans.txt
+ftp> put ftp_Trans2.txt
+ftp> get ftp_Trans2.txt
+```
+
+![FTP File Transfer](Images/FTP_Transfeer_File_from_attacker.png)
+
+Logged into the victim's FTP as `kishansai` from Kali and ran a few uploads and one download. Both `put` commands completed with `226 Transfer complete`. The `get ftp_Trans2.txt` pulled the file back — `94 bytes received`. Every one of these operations writes an `OK UPLOAD` or `OK DOWNLOAD` line into the vsftpd log, which my custom rules now match.
+
+### Wazuh — File Transfer Discover View
+
+![FTP File Transfer Log](Images/Ftp_FileTrans_log.png)
+
+The Discover view shows 378 hits with the file transfer events at the top. `rule.id: 100501` (FTP File Download Detected) at `14:30:32` with `data.url: /home/kishansai/ftp_Trans2.txt` and `data.status: OK DOWNLOAD`. Below it, `rule.id: 100503` (FTP Download Command Detected) from the `RETR` command. Further down, `rule.id: 100600` (FTP File Upload Detected With Source IP) with `data.status: OK UPLOAD`. All four custom rules fired.
+
+### Wazuh — Download Alert Document
+
+![FTP Download Document](Images/Ftp_Download_Doc.png)
+
+Opened the document for the download event. `rule.id: 100501`, `rule.level: 7`, `data.dstuser: kishansai`, `data.srcip: 10.181.125.131`, `data.status: OK DOWNLOAD`, `data.url: /home/kishansai/ftp_Trans2.txt`. The `full_log` shows the raw vsftpd line: `[kishansai] OK DOWNLOAD: Client "10.181.125.131", "/home/kishansai/ftp_Trans2.txt", 94 bytes, 21.40Kbyte/sec`. Filename, source IP, size, transfer speed — all in one event.
+
+### Wazuh — Upload Alert Document
+
+![FTP Upload Document](Images/Ftp_Upload_Doc.png)
+
+Same structure for the upload. `rule.id: 100600`, `data.status: OK UPLOAD`, `data.url: /home/kishansai/ftp_Trans2.txt`, `full_log` shows `[kishansai] OK UPLOAD: Client "10.181.125.131", "/home/kishansai/ftp_Trans2.txt", 94 bytes, 34.23Kbyte/sec`. Upload direction, same detail level.
+
+### Wazuh — Threat Hunting File Transfer Chain
+
+![FTP Threat Hunt](Images/Ftp_ThreatHunt_download.png)
+
+Filtered by `location:/var/log/vsftpd.log` in Threat Hunting. 10 hits total, covering the whole session from login to file transfers. Reading top to bottom: `100501` (download detected), `100503` (download command), `100600` (upload detected), `100502` (upload command), then `11402` (auth success) and `11401` (session opened) from the login itself. The full chain — login, auth, upload, download — is all there.
+
+---
+
+## Log Analysis
+
+Wazuh Agent (ID: 001, `kishansai-VirtualBox`) on the victim reads `/var/log/vsftpd.log` and forwards everything to the Wazuh manager. All events decoded using the `vsftpd` decoder, stored in `wazuh-alerts-4.x-2026.05.07` and `wazuh-alerts-4.x-2026.05.08`.
+
+### Rule IDs Observed
+
+| Rule ID | Description | Level |
 |---|---|---|
 | 11401 | vsftpd: FTP session opened | 3 |
 | 11402 | vsftpd: FTP Authentication success | 3 |
 | 11403 | vsftpd: Login failed accessing the FTP server | 5 |
 | 11451 | vsftpd: FTP brute force (multiple failed logins) | 10 |
-| 5503  | PAM: User login failed | 5 |
-| 5551  | PAM: Multiple failed logins in a small period of time | 10 |
+| 5503 | PAM: User login failed | 5 |
+| 5551 | PAM: Multiple failed logins in a small period of time | 10 |
 | 40112 | Multiple authentication failures followed by a success | 12 |
+| 100500 | FTP File Upload Detected (custom) | 7 |
+| 100501 | FTP File Download Detected (custom) | 7 |
+| 100502 | FTP Upload Command Detected (custom) | 6 |
+| 100503 | FTP Download Command Detected (custom) | 6 |
+| 100600 | FTP File Upload Detected With Source IP (custom) | 7 |
 
-### Event Volume by Attack Method
+### Event Volume
 
-| Attack Method | Tool | Wazuh Event Count |
+| Attack Method | Tool | Events |
 |---|---|---|
-| Method 1 — Manual FTP | Manual | Baseline |
+| Method 1 — Manual | Manual | Baseline |
 | Method 2 — Hydra Single User | Hydra | ~25 hits |
 | Method 3 — Hydra Multi-User | Hydra | ~56+ hits |
-| Method 4 — Medusa | Medusa | 316 hits (vsftpd filter) |
+| Method 4 — Medusa | Medusa | 316 hits |
 
 ### MITRE ATT&CK Mapping
 
@@ -309,44 +402,42 @@ The Ubuntu victim runs Wazuh Agent (agent ID: 001, named `kishansai-VirtualBox`)
 
 ## What I Observed
 
-**Weak passwords get cracked immediately.** The `victim` account used `test` as the password. Both Hydra and Medusa found it almost instantly because it was sitting in a 7-entry wordlist.
+**Weak passwords don't stand a chance.** `victim:test` was in a 7-entry list. Both Hydra and Medusa cracked it in seconds. In a real attack scenario with a proper wordlist, this would be instant.
 
-**Every failed attempt is visible in Wazuh.** Even a single Hydra run with 7 passwords generated dozens of log entries. That volume of failed authentications from one IP in seconds is very easy to spot.
+**The volume of failed logins is very obvious.** Even a small Hydra run generates dozens of events from one IP in a few seconds. That pattern sticks out immediately in Wazuh.
 
-**Wazuh has a dedicated FTP brute force rule.** `rule.id: 11451` fires specifically on FTP brute force behavior, even before a success happens. I saw it fire alongside the broader `rule.id: 40112` during the multi-user attacks.
+**Rule 40112 is the one to watch.** It fires when failures are followed by a success from the same source — the direct signature of a completed brute force. Fired every time without fail.
 
-**The tool doesn't matter for detection.** I switched between Hydra and Medusa across four attack sessions and the exact same rule IDs fired every time. Wazuh detects the behavior in the logs, not the tool.
+**Wazuh caught it regardless of which tool I used.** Hydra and Medusa both triggered the exact same rule IDs. The detection is based on the vsftpd log content, not the attack tool.
 
-**Rule 40112 is the key alert.** It fires when multiple failures are followed by a success from the same source — the direct signature of a successful brute force. It fired every time.
+**PAM adds a second detection layer.** `5503` and `5551` fired from PAM alongside the vsftpd rules. Two independent detection paths from a single attack.
 
-**PAM rules fire independently.** `rule.id: 5503` and `5551` triggered from PAM alongside the vsftpd-specific rules, giving a second detection layer on top of the FTP rules.
+**Custom rules filled a real gap.** Default Wazuh has nothing for `OK UPLOAD` or `OK DOWNLOAD`. After adding five rules, every file transfer shows up with the filename, source IP, user, size, and speed. Much more useful for investigating what actually happened after a successful login.
 
 ---
 
 ## Conclusion
 
-This task gave me a clear end-to-end view of FTP brute force from both sides. I set up vsftpd on Ubuntu, configured Wazuh to monitor the FTP logs, and ran four attack methods — manual login, Hydra single-user, Hydra multi-user, and Medusa. Every attack was detected. Rule 40112 at severity 12 fired each time a brute force succeeded. MITRE T1078 and T1110 were auto-tagged across all events. The main takeaway: FTP with weak passwords and no lockout policy is easy to compromise, and a properly configured SIEM catches every attempt in real time.
+Set up vsftpd, configured Wazuh to monitor it, ran four brute force methods, then wrote custom rules to catch file transfers too. Every attack was detected — rule 40112 fired on each successful brute force, and the custom rules caught the uploads and downloads with full detail. The whole attack chain from first failed login to file exfiltration is visible in Wazuh.
 
 ---
 
 ## Commands Reference
 
-### Victim Machine — FTP Setup
+### Victim — FTP Setup
 
 ```bash
-sudo apt update
-sudo apt install vsftpd -y
+sudo apt update && sudo apt install vsftpd -y
 sudo systemctl start vsftpd
 sudo systemctl enable vsftpd
 sudo systemctl status vsftpd
 sudo ss -tulnp | grep :21
 sudo nano /etc/vsftpd.conf
 sudo adduser victim
-ip a
 sudo tail -f /var/log/vsftpd.log
 ```
 
-### Victim Machine — Wazuh Agent
+### Victim — Wazuh Agent Config
 
 ```bash
 sudo nano /var/ossec/etc/ossec.conf
@@ -361,7 +452,7 @@ sudo systemctl status wazuh-agent
 </localfile>
 ```
 
-### Attacker Machine — Verification
+### Attacker — Recon
 
 ```bash
 ip a
@@ -369,20 +460,73 @@ nmap -sV 10.181.125.208
 ftp 10.181.125.208
 ```
 
-### Attack Method 2 — Hydra Single User
+### Hydra Single User
 
 ```bash
 hydra -l victim -P pass.txt ftp://10.181.125.208
 ```
 
-### Attack Method 3 — Hydra Multi-User
+### Hydra Multi-User
 
 ```bash
 hydra -L users.txt -P pass.txt -t 2 ftp://10.181.125.208
 ```
 
-### Attack Method 4 — Medusa
+### Medusa
 
 ```bash
 medusa -h 10.181.125.208 -U users.txt -P pass.txt -M ftp -t 2 -v 6
+```
+
+### Wazuh Manager — Custom Rules
+
+```bash
+cat >> /var/ossec/etc/rules/local_rules.xml << 'EOF'
+
+<group name="ftp_custom">
+
+  <rule id="100500" level="7">
+    <match>OK UPLOAD</match>
+    <description>FTP File Upload Detected</description>
+    <group>ftp,file_upload,file_transfer,</group>
+  </rule>
+
+  <rule id="100501" level="7">
+    <match>OK DOWNLOAD</match>
+    <description>FTP File Download Detected</description>
+    <group>ftp,file_download,file_transfer,</group>
+  </rule>
+
+  <rule id="100502" level="6">
+    <match>STOR</match>
+    <description>FTP Upload Command Detected</description>
+    <group>ftp,file_upload,file_transfer,</group>
+  </rule>
+
+  <rule id="100503" level="6">
+    <match>RETR</match>
+    <description>FTP Download Command Detected</description>
+    <group>ftp,file_download,file_transfer,</group>
+  </rule>
+
+  <rule id="100600" level="7">
+    <if_sid>11404</if_sid>
+    <description>FTP File Upload Detected With Source IP</description>
+    <group>ftp,file_upload,file_transfer,</group>
+  </rule>
+
+</group>
+
+EOF
+
+/var/ossec/bin/wazuh-control restart
+```
+
+### FTP File Transfer
+
+```bash
+ftp 10.181.125.208
+ftp> put ftp_trans.txt
+ftp> put ftp_Trans2.txt
+ftp> get ftp_Trans2.txt
 ```
