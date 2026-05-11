@@ -1,6 +1,6 @@
 # Netcat Reverse Shell Detection using Wazuh SIEM
 
-**Date:** 11th May, 2026
+## **Date:** 7th & 8th May, 2026
 
 ---
 
