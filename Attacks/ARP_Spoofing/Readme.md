@@ -49,7 +49,7 @@ Attacker is on `10.219.27.131`, interface `eth0`, MAC `08:00:27:1a:6c:ce`. This 
 ### 2. Confirm Victim IP
 
 ```bash
-ip a   # run on victim
+ip a   
 ```
 
 ![Victim IP](Images/Victim_IP.png)
@@ -152,7 +152,6 @@ The victim opens a browser and visits `chatgpt.com`. The attacker sees every DNS
 ### 11. Cleanup
 
 ```bash
-# Ctrl+C to stop both arpspoof processes
 sudo sysctl -w net.ipv4.ip_forward=0
 ```
 
