@@ -324,33 +324,6 @@ May 21 06:20:49 kishansai-VirtualBox sudo: kishansai : USER=root ;
   COMMAND=/usr/bin/nano /var/www/html/index.html
 ```
 
----
-
-## MITRE ATT&CK Mapping
-
-| MITRE ID | Technique | Tactic |
-|---|---|---|
-| T1046 | Network Service Discovery | Discovery |
-| T1021.004 | Remote Services: SSH | Initial Access |
-| T1548.003 | Sudo and Sudo Caching | Privilege Escalation, Defense Evasion |
-| T1565.001 | Stored Data Manipulation | Impact |
-| T1491.001 | Internal Defacement | Impact |
-
-Wazuh auto-tagged T1565.001 and T1548.003 on the alerts. The MITRE fields appear directly in the alert documents under `rule.mitre.id`, `rule.mitre.tactic`, and `rule.mitre.technique`.
-
----
-
-## Compliance Mapping
-
-| Framework | Controls |
-|---|---|
-| PCI-DSS | 10.2.5, 10.2.2, 11.5 |
-| HIPAA | 164.312.b, 164.312.c.1, 164.312.c.2 |
-| GDPR | II_5.1.f |
-| NIST 800-53 | SI.7 |
-| TSC | CC6.8, CC7.2, CC7.3 |
-
-Every Rule 550 alert came with these compliance tags auto-attached. No manual mapping needed.
 
 ---
 
