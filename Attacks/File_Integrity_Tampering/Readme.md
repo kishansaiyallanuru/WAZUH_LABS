@@ -195,9 +195,11 @@ echo "HACKED BY ATTACKER" | sudo tee /var/www/html/index.html
 
 Used `tee` with `sudo` because a direct shell redirect doesn't respect sudo privileges. The command ran, printed `HACKED BY ATTACKER` to stdout confirming the write, and the file was overwritten.
 
-![Modified Website](Images/Website_modified.png)
+**Browser result after Method 1:**
+![Website Defaced](Images/website_defaced.png)
 
-Opened a browser to `http://10.219.27.208` — the default Apache page was gone. Just `HACKED BY ATTACKER` in plain text. Defacement live.
+
+Opened a browser to `http://10.219.27.208` — the default Apache page was gone. Just `HACKED BY ATTACKER` in plain text on a white background. First defacement live.
 
 ### Method 2 — Nano (HTML Defacement)
 
@@ -219,9 +221,11 @@ Replaced the file content with a styled HTML defacement page. After saving, ran 
 </html>
 ```
 
-![Website Defaced](Images/website_defaced.png)
+**Browser result after Method 2:**
+![Modified Website](Images/Modified_website.png)
 
-Browser refresh showed the styled defacement — black background, red text, "Website Defaced" heading. Both modifications were done. Wazuh had already fired alerts for each one.
+
+Browser refresh showed the fully styled defacement — black background, red centered text, "Website Defaced" as the heading and "Compromised by Attacker" below it. Both modifications done. Wazuh had already fired a separate Rule 550 alert for each one.
 
 ---
 
@@ -322,6 +326,33 @@ May 21 06:20:49 kishansai-VirtualBox sudo: kishansai : USER=root ;
 
 ---
 
+## MITRE ATT&CK Mapping
+
+| MITRE ID | Technique | Tactic |
+|---|---|---|
+| T1046 | Network Service Discovery | Discovery |
+| T1021.004 | Remote Services: SSH | Initial Access |
+| T1548.003 | Sudo and Sudo Caching | Privilege Escalation, Defense Evasion |
+| T1565.001 | Stored Data Manipulation | Impact |
+| T1491.001 | Internal Defacement | Impact |
+
+Wazuh auto-tagged T1565.001 and T1548.003 on the alerts. The MITRE fields appear directly in the alert documents under `rule.mitre.id`, `rule.mitre.tactic`, and `rule.mitre.technique`.
+
+---
+
+## Compliance Mapping
+
+| Framework | Controls |
+|---|---|
+| PCI-DSS | 10.2.5, 10.2.2, 11.5 |
+| HIPAA | 164.312.b, 164.312.c.1, 164.312.c.2 |
+| GDPR | II_5.1.f |
+| NIST 800-53 | SI.7 |
+| TSC | CC6.8, CC7.2, CC7.3 |
+
+Every Rule 550 alert came with these compliance tags auto-attached. No manual mapping needed.
+
+---
 
 ## What I Observed
 
